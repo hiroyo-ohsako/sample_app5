@@ -7,6 +7,15 @@ class UserTest < ActiveSupport::TestCase
                      password: "foobar", password_confirmation: "foobar")
   end
 
+  # ユーザーのステータスフィードを返す
+  def feed
+    following_ids = "SELECT followed_id FROM relationships
+                     WHERE  follower_id = :user_id"
+    Micropost.where("user_id IN (#{following_ids})
+                     OR user_id = :user_id", user_id: id)
+                     .includes(:user, image_attachment: :blob)                    
+  end
+
   test "should be valid" do
     assert @user.valid?
   end
@@ -80,5 +89,24 @@ class UserTest < ActiveSupport::TestCase
     # ユーザーは自分自身をフォローできない
     michael.follow(michael)
     assert_not michael.following?(michael)
+  end
+
+  
+
+  test "feed should have the right posts" do
+    michael = users(:michael)
+    archer  = users(:archer)
+    lana    = users(:lana)
+    # フォローしているユーザーの投稿を確認
+    lana.microposts.each do |post_following|
+    end
+    # フォロワーがいるユーザー自身の投稿を確認
+    michael.microposts.each do |post_self|
+      assert michael.feed.include?(post_self)
+    end
+    # フォローしていないユーザーの投稿を確認
+    archer.microposts.each do |post_unfollowed|
+      assert_not michael.feed.include?(post_unfollowed)
+    end
   end
 end
