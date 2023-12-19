@@ -7,21 +7,12 @@ class UserTest < ActiveSupport::TestCase
                      password: "foobar", password_confirmation: "foobar")
   end
 
-  # ユーザーのステータスフィードを返す
-  def feed
-    following_ids = "SELECT followed_id FROM relationships
-                     WHERE  follower_id = :user_id"
-    Micropost.where("user_id IN (#{following_ids})
-                     OR user_id = :user_id", user_id: id)
-                     .includes(:user, image_attachment: :blob)                    
-  end
-
   test "should be valid" do
     assert @user.valid?
   end
 
   test "name should be present" do
-    @user.name = ""
+    @user.name = "     "
     assert_not @user.valid?
   end
 
@@ -38,6 +29,15 @@ class UserTest < ActiveSupport::TestCase
   test "email should not be too long" do
     @user.email = "a" * 244 + "@example.com"
     assert_not @user.valid?
+  end
+
+  test "email validation should accept valid addresses" do
+    valid_addresses = %w[user@example.com USER@foo.COM A_US-ER@foo.bar.org
+                         first.last@foo.jp alice+bob@baz.cn]
+    valid_addresses.each do |valid_address|
+      @user.email = valid_address
+      assert @user.valid?, "#{valid_address.inspect} should be valid"
+    end
   end
 
   test "email validation should reject invalid addresses" do
@@ -78,8 +78,8 @@ class UserTest < ActiveSupport::TestCase
   end
 
   test "should follow and unfollow a user" do
-    michael  = users(:michael)
-    archer   = users(:archer)
+    michael = users(:michael)
+    archer  = users(:archer)
     assert_not michael.following?(archer)
     michael.follow(archer)
     assert michael.following?(archer)
@@ -91,14 +91,13 @@ class UserTest < ActiveSupport::TestCase
     assert_not michael.following?(michael)
   end
 
-  
-
   test "feed should have the right posts" do
     michael = users(:michael)
     archer  = users(:archer)
     lana    = users(:lana)
     # フォローしているユーザーの投稿を確認
     lana.microposts.each do |post_following|
+      assert michael.feed.include?(post_following)
     end
     # フォロワーがいるユーザー自身の投稿を確認
     michael.microposts.each do |post_self|
